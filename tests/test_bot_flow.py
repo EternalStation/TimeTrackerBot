@@ -189,3 +189,49 @@ async def test_ping_answer_buttons(env):
     assert (await repo.get_ping(other))["status"] == "skipped"
     # a ping that belongs to someone else is refused
     await env.tap("p:9999:skip")
+
+
+async def test_bot_profile_setup_is_safe_and_skips_name_when_equal():
+    from app.main import BOT_NAME, COMMANDS, DESCRIPTION, SHORT_DESCRIPTION, setup_bot_profile
+    assert len(SHORT_DESCRIPTION) <= 120 and len(DESCRIPTION) <= 512
+    assert [c for c, _ in COMMANDS] == ["start", "today", "week", "dashboard", "log", "timer", "stop",
+                                        "goals", "settings", "pause", "resume", "privacy", "help"]
+
+    class Name:
+        def __init__(self, name):
+            self.name = name
+
+    class Bot:
+        def __init__(self, name, fail=False):
+            self.calls, self.name, self.fail = [], name, fail
+
+        async def get_my_name(self):
+            if self.fail:
+                raise RuntimeError("flood")
+            return Name(self.name)
+
+        async def set_my_name(self, name):
+            self.calls.append("name")
+            if self.fail:
+                raise RuntimeError("flood")
+
+        async def set_my_short_description(self, short_description):
+            self.calls.append("short")
+            if self.fail:
+                raise RuntimeError("x")
+
+        async def set_my_description(self, description):
+            self.calls.append("desc")
+
+        async def set_my_commands(self, commands):
+            self.calls.append(f"cmds{len(commands)}")
+
+    same = Bot(BOT_NAME)
+    await setup_bot_profile(same)
+    assert same.calls == ["short", "desc", "cmds13"]
+    other = Bot("TimeTracker")
+    await setup_bot_profile(other)
+    assert other.calls[0] == "name"
+    broken = Bot("TimeTracker", fail=True)
+    await setup_bot_profile(broken)                      # must not raise
+    assert "desc" in broken.calls

@@ -56,7 +56,7 @@ async def start(cb: CallbackQuery, repo: Repo):
     await start_timer(repo, user["id"], cat["id"], now)
     await safe_answer(cb, "Timer started")
     try:
-        await cb.message.edit_text(f"▶️ {cat_label(cat)} started at {fmt_hm(now, user_tz(user))}. Tap ⏹ Stop when you're done.")
+        await cb.message.edit_text(f"▶️ {cat_label(cat)} started at {fmt_hm(now, user_tz(user))}. Meter's running. Tap ⏹ Stop when you're done.")
     except Exception:
         pass
 
@@ -70,8 +70,8 @@ async def stop(message: Message, repo: Repo, bot):
     now = utcnow()
     result = await stop_timer(repo, user["id"], now)
     if not result:
-        await message.answer("No timer is running.")
+        await message.answer("No timer is running. Nothing on the meter.")
         return
     cat = await repo.get_category(user["id"], result["category_id"])
-    await message.answer(f"⏹ {cat_label(cat) if cat else ''} · {fmt_dur(result['minutes'])}")
+    await message.answer(f"⏹ {cat_label(cat) if cat else ''} · {fmt_dur(result['minutes'])}. Rung up.")
     await check_limits(bot, repo, user["id"], now)

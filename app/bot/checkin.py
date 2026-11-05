@@ -9,6 +9,7 @@ from ..limits import check_limits
 from ..repo import Repo
 from ..tg import safe_answer, safe_edit
 from ..timeutil import fmt_hm, iso, parse_iso, utcnow
+from . import texts
 from .keyboards import cat_label, change_keyboard, ping_keyboard
 
 router = Router()
@@ -25,7 +26,7 @@ async def on_ping_button(cb: CallbackQuery, repo: Repo, bot):
     ping = await repo.get_ping(ping_id)
     user = await repo.get_user(cb.from_user.id)
     if not ping or not user or ping["user_id"] != user["id"]:
-        await safe_answer(cb, "I can't find that check-in anymore.")
+        await safe_answer(cb, "That receipt is gone. Can't find the check-in.")
         return
     tz = user_tz(user)
     start, end = parse_iso(ping["start_utc"]), parse_iso(ping["end_utc"])
@@ -54,11 +55,11 @@ async def on_ping_button(cb: CallbackQuery, repo: Repo, bot):
         await safe_edit(bot, chat_id, message_id, f"🙈 Skipped {label}", reply_markup=change_keyboard(ping_id))
     elif action == "mix":
         await safe_answer(cb)
-        await cb.message.answer("Log the parts like 14:00-14:40 work, or open the dashboard and add an entry.")
+        await cb.message.answer("Split bill? Send each part like 14:00-14:40 work, or add entries in the dashboard.")
     elif action == "chg":
         cats = await repo.list_categories(user["id"], active_only=True)
         await safe_answer(cb)
-        await safe_edit(bot, chat_id, message_id, f"🕐 What were you doing {label}?",
+        await safe_edit(bot, chat_id, message_id, texts.ping_question(label),
                         reply_markup=ping_keyboard(ping_id, cats, None))
     else:
         await safe_answer(cb)

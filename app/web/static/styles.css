@@ -300,3 +300,61 @@ h2.sec {
 }
 
 .badge.run { color: var(--text); background: var(--line); }
+
+/* ---------- receipt (always paper, even in dark theme) ---------- */
+.wordmark { padding: 10px 2px 0; font: 700 11px/1 "DejaVu Sans Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: 0.32em; color: var(--hint); }
+.wordmark + .tabs { padding-top: 8px; }
+.receipt-wrap {
+  --paper: #FBF9F4; --ink: #1D1D1F; --rmuted: #6F6F6F; --rule: #C9C5BC; --rwaste: #E5482F;
+  margin: 6px 0 16px;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.18)) drop-shadow(0 6px 10px rgba(0,0,0,.16));
+}
+:root[data-theme="dark"] .receipt-wrap { filter: drop-shadow(0 0 0.5px rgba(255,255,255,.35)) drop-shadow(0 8px 18px rgba(0,0,0,.6)); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .receipt-wrap { filter: drop-shadow(0 0 0.5px rgba(255,255,255,.35)) drop-shadow(0 8px 18px rgba(0,0,0,.6)); } }
+.receipt {
+  background: var(--paper); color: var(--ink);
+  padding: 22px 16px 24px;
+  font: 400 13px/1.55 "DejaVu Sans Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  --t: 8px;
+  -webkit-mask:
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / var(--t) 51% round no-repeat,
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / var(--t) 51% round no-repeat;
+  mask:
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / var(--t) 51% round no-repeat,
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / var(--t) 51% round no-repeat;
+}
+.rc-brand { text-align: center; font-weight: 700; font-size: 12px; letter-spacing: 0.06em; margin-bottom: 6px; }
+.rc-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; text-transform: uppercase; }
+.rc-row .l { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-row .r { white-space: nowrap; text-align: right; text-transform: none; }
+.rc-row.meta { font-size: 12px; color: var(--rmuted); }
+.rc-row.cols { font-size: 11px; color: var(--rmuted); letter-spacing: 0.04em; margin-top: 2px; }
+.rc-row.muted { color: var(--rmuted); }
+.rc-row .q { display: inline-block; width: 3.4ch; color: var(--rmuted); }
+.rc-row .n { text-transform: uppercase; }
+.star { color: var(--rwaste); font-weight: 700; margin-left: 3px; }
+.rc-row.run { color: var(--rmuted); }
+.rc-row.run .l { animation: blink 2s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: .55; } }
+.rc-row.sum { margin-top: 2px; font-weight: 700; justify-content: flex-end; }
+.rc-row.delta .r { font-weight: 700; }
+.rc-row.delta.up .r { color: var(--rwaste); }
+.rc-rule { border-top: 1px dashed var(--rule); margin: 10px 0; height: 0; }
+.rc-rule.dbl { border-top: 3px double var(--ink); margin: 10px 0 8px; opacity: .8; }
+.rc-total .lab { font-weight: 700; font-size: 13px; letter-spacing: 0.08em; color: var(--rwaste); }
+.rc-total .big { font-size: 44px; line-height: 1.1; font-weight: 700; letter-spacing: -0.03em; color: var(--rwaste); }
+.rc-total .pct { font-size: 12px; color: var(--rmuted); letter-spacing: 0.04em; text-align: right; margin-top: 2px; }
+.rc-year { text-align: center; font-size: 12px; letter-spacing: 0.03em; }
+.rc-year b { display: block; font-size: 15px; margin-top: 2px; }
+.rc-foot { text-align: center; font-size: 11px; color: var(--rmuted); letter-spacing: 0.04em; }
+.rc-empty { text-align: center; padding: 22px 0 14px; }
+.rc-empty b { display: block; font-size: 14px; letter-spacing: 0.05em; }
+.rc-empty span { display: block; margin-top: 6px; font-size: 11px; color: var(--rmuted); }
+.rc-barcode {
+  height: 38px; margin: 14px auto 0; width: min(100%, 240px);
+  background:
+    repeating-linear-gradient(90deg, var(--ink) 0 2px, transparent 2px 4px, var(--ink) 4px 5px, transparent 5px 8px, var(--ink) 8px 11px, transparent 11px 12px, var(--ink) 12px 13px, transparent 13px 15px, var(--ink) 15px 17px, transparent 17px 21px);
+}
+@media (max-width: 370px) { .rc-total .big { font-size: 38px; } .receipt { padding-left: 12px; padding-right: 12px; } }
+@media (prefers-reduced-motion: reduce) { .rc-row.run .l { animation: none; } }

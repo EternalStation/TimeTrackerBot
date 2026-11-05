@@ -30,6 +30,53 @@ def build_dispatcher(repo: Repo, cfg: Config):
     return dp
 
 
+BOT_NAME = "Spent"
+SHORT_DESCRIPTION = "Your day, itemized. I ask what you did, you tap, and every night you get a receipt."
+DESCRIPTION = (
+    "Spent: your day, itemized.\n\n"
+    "I ping you every hour or so and ask what you were doing. You tap one button. "
+    "Every night I print a receipt for your day, and after 7 days you get the full audit: "
+    "what you spent your time on, and what you'd call a waste.\n\n"
+    "No lectures. No refunds. Tap Start to open a tab."
+)
+COMMANDS = [
+    ("start", "Open a tab"), ("today", "Today's receipt"), ("week", "Weekly receipt"),
+    ("dashboard", "Open the dashboard"), ("log", "Add time by hand"), ("timer", "Start a live timer"),
+    ("stop", "Stop the timer"), ("goals", "Daily limits for waste"), ("settings", "Interval, hours, categories"),
+    ("pause", "Close the store for now"), ("resume", "Reopen the store"), ("privacy", "What I keep"),
+    ("help", "The menu"),
+]
+PROFILE_CALL_TIMEOUT = 10
+
+
+async def _profile_call(label: str, coro) -> None:
+    try:
+        await asyncio.wait_for(coro, PROFILE_CALL_TIMEOUT)
+        log.info("bot profile: %s ok", label)
+    except Exception as exc:
+        log.warning("bot profile: %s failed: %s", label, exc)
+
+
+async def setup_bot_profile(bot) -> None:
+    """Name, descriptions and command menu. Never raises, every call is isolated."""
+    from aiogram.types import BotCommand
+
+    # Telegram rate-limits set_my_name hard: only call it when the name differs.
+    try:
+        current = await asyncio.wait_for(bot.get_my_name(), PROFILE_CALL_TIMEOUT)
+        needs_name = (getattr(current, "name", "") or "") != BOT_NAME
+    except Exception as exc:
+        log.warning("bot profile: get_my_name failed: %s", exc)
+        needs_name = False
+    if needs_name:
+        await _profile_call("set_my_name", bot.set_my_name(name=BOT_NAME))
+    await _profile_call("set_my_short_description",
+                        bot.set_my_short_description(short_description=SHORT_DESCRIPTION))
+    await _profile_call("set_my_description", bot.set_my_description(description=DESCRIPTION))
+    await _profile_call("set_my_commands", bot.set_my_commands(
+        [BotCommand(command=c, description=d) for c, d in COMMANDS]))
+
+
 async def run(cfg: Config) -> None:
     if not cfg.web_only and not cfg.bot_token:
         raise SystemExit("BOT_TOKEN is not set. Set it, or use WEB_ONLY=1 for the web server only.")
@@ -55,6 +102,7 @@ async def run(cfg: Config) -> None:
             from .scheduler import run_scheduler
             dp = build_dispatcher(repo, cfg)
             me = await bot.get_me()
+            profile_task = asyncio.create_task(setup_bot_profile(bot))   # background: never delays startup
             if cfg.webapp_url:
                 try:
                     await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(
@@ -68,6 +116,7 @@ async def run(cfg: Config) -> None:
                 await dp.start_polling(bot)
             finally:
                 scheduler.cancel()
+                profile_task.cancel()
     finally:
         await runner.cleanup()
         if bot:

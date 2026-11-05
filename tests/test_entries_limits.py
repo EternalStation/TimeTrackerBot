@@ -67,7 +67,7 @@ async def test_limit_warning_once_per_day(repo):
     assert await check_limits(bot, repo, 1, NOW) == []
     await repo.add_entry(1, sm, dt(2026, 11, 4, 13), dt(2026, 11, 4, 13, 15), "manual")
     sent = await check_limits(bot, repo, 1, NOW)
-    assert sent == ["⚠️ Social media: 35m today. Your limit is 30m."]
+    assert sent == ["⚠️ Social media: 35m today. Your limit is 30m. Just flagging it."]
     assert len(bot.sent) == 1
     # more social media later the same day: no second warning
     await repo.add_entry(1, sm, dt(2026, 11, 4, 14), dt(2026, 11, 4, 15), "manual")
@@ -76,7 +76,7 @@ async def test_limit_warning_once_per_day(repo):
     # next local day it can fire again
     await repo.add_entry(1, sm, dt(2026, 11, 5, 12), dt(2026, 11, 5, 13), "manual")
     again = await check_limits(bot, repo, 1, dt(2026, 11, 5, 14))
-    assert again == ["⚠️ Social media: 1h today. Your limit is 30m."]
+    assert again == ["⚠️ Social media: 1h today. Your limit is 30m. Just flagging it."]
 
 
 async def test_limit_warning_triggered_by_running_timer(repo):
@@ -87,7 +87,7 @@ async def test_limit_warning_triggered_by_running_timer(repo):
     await start_timer(repo, 1, sm, dt(2026, 11, 4, 17, 0))
     assert await check_limits(bot, repo, 1, dt(2026, 11, 4, 17, 50)) == []
     sent = await check_limits(bot, repo, 1, dt(2026, 11, 4, 18, 5))
-    assert sent == ["⚠️ Social media: 1h 05m today. Your limit is 1h."]
+    assert sent == ["⚠️ Social media: 1h 05m today. Your limit is 1h. Just flagging it."]
     ds = await day_stats_for(repo, await repo.get_user(1), NOW.date(), dt(2026, 11, 4, 18, 5))
     assert ds.minutes_for(sm) == 65
 

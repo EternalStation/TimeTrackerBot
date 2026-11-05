@@ -49,7 +49,7 @@ over the same messages.
 | `BOT_TOKEN` | yes (not with `WEB_ONLY=1`) | | token from BotFather |
 | `PUBLIC_URL` | for the dashboard | | public https address, no trailing slash |
 | `ANTHROPIC_API_KEY` | no | | turns on AI insights |
-| `ANTHROPIC_MODEL` | no | `claude-haiku-4-5` | model used for insights |
+| `ANTHROPIC_MODEL` | no | `claude-haiku-5-5` | model used for insights |
 | `DB_PATH` | no | `./data/timetracker.db` | database file (`/data/timetracker.db` on Railway) |
 | `ADMIN_IDS` | no | | comma-separated Telegram ids allowed to use `/admin_stats` |
 | `PORT` | no | `8080` | Railway sets this by itself |
@@ -105,4 +105,4 @@ You can also send a line like `14:00-15:30 work` or `yesterday 22:00-23:15 gamin
 
 - All times are stored in UTC and shown in each person's own timezone.
 - The data model, check-in rules and API are described in `SPEC.md`.
-- Fonts on the weekly card are Inter, under the SIL Open Font License (`app/assets/fonts/OFL.txt`).
+- Receipt PNGs use DejaVu Sans Mono (`app/assets/fonts/DejaVu-LICENSE.txt`). Brand images for BotFather: `python -m app.brand` writes `app/assets/brand/avatar.png` and `description.png`.

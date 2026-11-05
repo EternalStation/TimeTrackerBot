@@ -15,7 +15,7 @@ class Config:
     bot_token: str = ""
     public_url: str = ""
     anthropic_api_key: str = ""
-    anthropic_model: str = "claude-haiku-4-5"
+    anthropic_model: str = "claude-haiku-5-5"
     db_path: str = "./data/timetracker.db"
     admin_ids: set[int] = field(default_factory=set)
     port: int = 8080
@@ -43,7 +43,7 @@ class Config:
             bot_token=(env.get("BOT_TOKEN") or "").strip(),
             public_url=(env.get("PUBLIC_URL") or "").strip().rstrip("/"),
             anthropic_api_key=(env.get("ANTHROPIC_API_KEY") or "").strip(),
-            anthropic_model=(env.get("ANTHROPIC_MODEL") or "claude-haiku-4-5").strip(),
+            anthropic_model=(env.get("ANTHROPIC_MODEL") or "claude-haiku-5-5").strip(),
             db_path=(env.get("DB_PATH") or "./data/timetracker.db").strip(),
             admin_ids=admin_ids,
             port=port,

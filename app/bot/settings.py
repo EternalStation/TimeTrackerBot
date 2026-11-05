@@ -74,7 +74,7 @@ async def cmd_pause(message: Message, repo: Repo):
         await message.answer(NOT_STARTED)
         return
     await repo.update_user(user["id"], paused=1)
-    await message.answer("Check-ins are paused. Send /resume when you want them back.")
+    await message.answer("Store's closed. Check-ins are paused, /resume to reopen.")
 
 
 @router.message(Command("resume"))
@@ -87,7 +87,7 @@ async def cmd_resume(message: Message, repo: Repo):
     # restart the interval from now so the first ping does not cover the whole pause
     await repo.update_user(user["id"], paused=0, last_checkin_at=iso(now),
                            next_ping_at=iso(now))
-    await message.answer("Check-ins are back on.")
+    await message.answer("Store's open again. Check-ins are back on.")
 
 
 @router.message(Command("timezone"))

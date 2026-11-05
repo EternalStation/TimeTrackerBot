@@ -102,10 +102,9 @@
   /* ---------- screens: skeleton / error ---------- */
   function sk(h, extra) { return '<div class="sk" style="height:' + h + 'px;' + (extra || '') + '"></div>'; }
   function skeleton(kind) {
-    if (kind === 'today') return sk(40, 'margin-bottom:12px') + sk(150, 'margin-bottom:12px;border-radius:16px') +
-      '<div class="stats">' + sk(64, 'border-radius:14px') + sk(64, 'border-radius:14px') + sk(64, 'border-radius:14px') + '</div>' +
+    if (kind === 'today') return sk(40, 'margin-bottom:12px') + sk(420, 'margin-bottom:12px;border-radius:4px') +
       sk(100, 'margin-bottom:12px;border-radius:16px') + sk(180, 'border-radius:16px');
-    if (kind === 'week') return sk(64, 'margin-bottom:12px;border-radius:16px') + sk(130, 'margin-bottom:12px;border-radius:16px') +
+    if (kind === 'week') return sk(64, 'margin-bottom:12px;border-radius:16px') + sk(400, 'margin-bottom:12px;border-radius:4px') +
       sk(250, 'margin-bottom:12px;border-radius:16px') + sk(170, 'border-radius:16px');
     return sk(120, 'margin-bottom:12px;border-radius:16px') + sk(120, 'margin-bottom:12px;border-radius:16px') + sk(200, 'border-radius:16px');
   }
@@ -127,6 +126,79 @@
       return true;
     }
     return false;
+  }
+
+
+  /* ---------- receipt ---------- */
+  var MON = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  var DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  function rcDate(s, withDow) {
+    var p = s.split('-').map(Number), dt = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+    return (withDow ? DOW[dt.getUTCDay()] + ' ' : '') + pad(p[2]) + ' ' + MON[p[1] - 1] + (withDow ? ' ' + p[0] : '');
+  }
+  function daysBetween(a, b) { return Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 864e5); }
+  function perYear(min) { return Math.round(min * 365 / 1440); }
+  function rrow(l, r, cls, rid) {
+    return '<div class="rc-row' + (cls ? ' ' + cls : '') + '"><span class="l">' + l + '</span><span class="r"' + (rid ? ' id="' + rid + '"' : '') + '>' + r + '</span></div>';
+  }
+  var RC_RULE = '<div class="rc-rule" aria-hidden="true"></div>';
+  var RC_DOUBLE = '<div class="rc-rule dbl" aria-hidden="true"></div>';
+  function receiptWrap(label, inner) {
+    return '<div class="receipt-wrap"><article class="receipt" aria-label="' + esc(label) + '">' + inner +
+      '<div class="rc-barcode" aria-hidden="true"></div></article></div>';
+  }
+  function itemLine(c, minutes, qty) {
+    return rrow((qty != null ? '<span class="q">' + pad(qty) + '</span>' : '') + '<span class="n">' + esc(c.name) + '</span>' +
+      (c.is_waste ? '<b class="star" aria-label="waste">*</b>' : ''), dur(minutes), 'item');
+  }
+  function todayReceipt(d) {
+    var u = state.me.user, isToday = state.date === u.today;
+    var dayN = u.challenge_day - daysBetween(state.date, u.today);
+    var meta = rcDate(state.date, true);
+    var head = '<div class="rc-brand">SPENT · YOUR DAY, ITEMIZED</div>' +
+      rrow(esc(meta), dayN >= 1 && dayN <= u.challenge_days ? 'DAY ' + dayN + '/' + u.challenge_days : '', 'meta') + RC_RULE;
+    var foot = '<div class="rc-foot">* = WHAT YOU CALL WASTE</div>';
+    if (!(d.tracked_minutes > 0)) {
+      return receiptWrap('Receipt for ' + dateLabel(state.date), head +
+        '<div class="rc-empty"><b>NOTHING ITEMIZED YET</b><span>' + (isToday ? 'TRACK SOMETHING AND IT SHOWS UP HERE.' : 'NO ENTRIES ON THIS DAY.') + '</span></div>' + RC_RULE + foot);
+    }
+    var qty = {};
+    d.entries.forEach(function (e) { if (e.end_min != null && !(d.running && e.id === d.running.entry_id)) qty[e.category_id] = (qty[e.category_id] || 0) + 1; });
+    if (d.running) qty[d.running.category_id] = (qty[d.running.category_id] || 0) + 1;
+    var rows = d.totals.slice().sort(function (a, b) { return b.minutes - a.minutes; }).filter(function (t) { return t.minutes > 0; });
+    var h = head + rrow('QTY&nbsp;&nbsp;ITEM', 'TIME', 'cols');
+    rows.forEach(function (t) { h += itemLine(cat(t.category_id), t.minutes, qty[t.category_id] || 1); });
+    if (d.running) h += rrow('▸ ' + esc(cat(d.running.category_id).name) + ' (running)', dur(d.running.minutes), 'run', 'run-min');
+    h += RC_RULE + rrow('TRACKED', dur(d.tracked_minutes)) + rrow('NOT TRACKED', dur(d.untracked_minutes), 'muted') + RC_DOUBLE;
+    h += totalBlock(d.waste_minutes, Math.round(d.waste_share * 100) + '% OF TRACKED', 'CLEAN DAY. SUSPICIOUS.');
+    if (d.waste_minutes > 0) h += RC_RULE + '<div class="rc-year">IF EVERY DAY WAS LIKE ' + (isToday ? 'TODAY' : 'THAT ONE') + ':<b>' + perYear(d.waste_minutes) + ' DAYS A YEAR</b></div>';
+    return receiptWrap('Receipt for ' + dateLabel(state.date), h + RC_RULE + foot);
+  }
+  function totalBlock(min, pct, clean) {
+    return '<div class="rc-total"><div class="lab">TOTAL WASTED' + (min > 0 ? ' <b class="star">*</b>' : '') + '</div><div class="big">' + dur(min) + '</div>' +
+      '<div class="pct">' + (min > 0 ? pct : clean) + '</div></div>';
+  }
+  function weekReceipt(w, perDay, daysN) {
+    var head = '<div class="rc-brand">SPENT · YOUR WEEK, ITEMIZED</div>' + rrow(rcDate(w.start) + ' – ' + rcDate(w.end) + ' ' + w.end.slice(0, 4), '', 'meta') + RC_RULE;
+    var foot = '<div class="rc-foot">* = WHAT YOU CALL WASTE</div>';
+    if (!(w.tracked_minutes > 0)) {
+      return receiptWrap('Weekly receipt', head + '<div class="rc-empty"><b>NOTHING ITEMIZED YET</b><span>TRACK A FEW DAYS AND THE WEEK ADDS UP HERE.</span></div>' + RC_RULE + foot);
+    }
+    var tots = w.totals.slice().sort(function (a, b) { return b.minutes - a.minutes; }).filter(function (t) { return t.minutes > 0; });
+    var h = head + rrow('ITEM', 'TIME', 'cols');
+    tots.slice(0, 6).forEach(function (t) { h += itemLine(cat(t.category_id), t.minutes); });
+    if (tots.length > 6) h += rrow('+' + (tots.length - 6) + ' MORE', dur(tots.slice(6).reduce(function (a, t) { return a + t.minutes; }, 0)), 'muted');
+    h += RC_RULE + rrow('TRACKED', dur(w.tracked_minutes)) + rrow('NOT TRACKED', dur(w.untracked_minutes), 'muted') + RC_DOUBLE;
+    h += totalBlock(w.waste_minutes, Math.round(w.waste_share * 100) + '% OF TRACKED', 'CLEAN WEEK. SUSPICIOUS.');
+    if (w.waste_minutes > 0) {
+      h += rrow('≈ ' + dur(perDay) + ' A DAY', '', 'sum');
+      h += RC_RULE + '<div class="rc-year">AT THIS PACE:<b>' + perYear(perDay) + ' DAYS A YEAR</b></div>';
+    }
+    if (w.prev_waste_minutes != null) {
+      var diff = w.waste_minutes - w.prev_waste_minutes;
+      h += RC_RULE + rrow('VS LAST WEEK', Math.abs(diff) < 5 ? 'SAME' : (diff < 0 ? '−' : '+') + dur(Math.abs(diff)), 'delta' + (diff >= 5 ? ' up' : ''));
+    }
+    return receiptWrap('Weekly receipt', h + RC_RULE + foot);
   }
 
   /* ---------- Today ---------- */
@@ -171,25 +243,12 @@
   }
   function renderToday() {
     var d = state.cache.day, el = $('#view-today'), u = state.me.user;
-    var isToday = state.date === u.today, isTodayWord = isToday ? 'today' : 'that day';
-    var sub = d.tracked_minutes > 0
-      ? Math.round(d.waste_share * 100) + '% of tracked time'
-      : 'Nothing tracked yet';
+    var isToday = state.date === u.today;
     var h = '';
     h += '<div class="datebar"><button class="date-btn" data-act="prev" aria-label="Previous day">‹</button>' +
       '<div class="date-label">' + esc(dateLabel(state.date)) + '</div>' +
       '<button class="date-btn" data-act="next" aria-label="Next day"' + (isToday ? ' disabled' : '') + '>›</button></div>';
-    h += '<div class="card hero"><div class="label">Wasted ' + isTodayWord + '</div><div class="big num">' + dur(d.waste_minutes) +
-      '</div><div class="sub">' + sub + '</div></div>';
-    h += '<div class="stats">' +
-      '<div class="stat"><div class="v">' + dur(d.tracked_minutes) + '</div><div class="k">Tracked</div></div>' +
-      '<div class="stat"><div class="v">' + dur(d.untracked_minutes) + '</div><div class="k">Untracked</div></div>' +
-      '<div class="stat"><div class="v waste">' + dur(d.waste_minutes) + '</div><div class="k">Waste</div></div></div>';
-    if (d.running) {
-      var rc = cat(d.running.category_id);
-      h += '<div class="running" style="--rc:' + esc(rc.color) + '"><span class="pulse"></span><div class="who"><b>' + esc(rc.emoji + ' ' + rc.name) +
-        '</b><span>Timer running since ' + esc(d.running.start) + '</span></div><div class="t num" id="run-min">' + dur(d.running.minutes) + '</div></div>';
-    }
+    h += todayReceipt(d);
     h += '<div class="card"><h3 class="card-title">Your day</h3>' + timelineHTML(d) + '</div>';
     if (d.limits && d.limits.length) {
       h += '<div class="card"><h3 class="card-title">Limits</h3>';
@@ -295,19 +354,11 @@
     }
     var daysWithData = w.days.filter(function (d) { return d.tracked_minutes > 0; }).length || 1;
     var perDay = w.waste_minutes / daysWithData;
-    var delta = '';
-    if (w.prev_waste_minutes != null) {
-      var diff = w.waste_minutes - w.prev_waste_minutes;
-      if (Math.abs(diff) < 5) delta = '<span class="delta flat">About the same as the week before</span>';
-      else if (diff < 0) delta = '<span class="delta good">↓ ' + dur(-diff) + ' less than the week before</span>';
-      else delta = '<span class="delta warm">↑ ' + dur(diff) + ' more than the week before</span>';
-    }
     var peak = Math.max.apply(null, w.waste_by_hour), peakH = w.waste_by_hour.indexOf(peak);
     var h = '';
     h += '<div class="card challenge"><div><div class="t">' + (cd <= total ? 'Day ' + cd + ' of ' + total : 'Audit complete') + '</div>' +
       '<div class="muted small">' + loggedN + ' of ' + total + ' days logged</div></div><div class="dots" role="img" aria-label="' + loggedN + ' of ' + total + ' days logged">' + dots + '</div></div>';
-    h += '<div class="card hero"><div class="label">Wasted this week</div><div class="big num">' + dur(w.waste_minutes) + '</div>' +
-      '<div class="sub num">≈ ' + dur(perDay) + ' a day · ' + Math.round(w.waste_share * 100) + '% of tracked time</div>' + delta + '</div>';
+    h += weekReceipt(w, perDay, daysWithData);
     h += '<div class="card"><h3 class="card-title">Each day</h3><div class="chart-box" id="box-week"><canvas id="ch-week" role="img" aria-label="Stacked bar chart of time per day by category"></canvas></div></div>';
     h += '<div class="card"><h3 class="card-title">When waste happens</h3><div class="chart-box short" id="box-hours"><canvas id="ch-hours" role="img" aria-label="Waste minutes by hour of day"></canvas></div>' +
       (peak > 0 ? '<div class="muted small" style="margin-top:8px">Busiest hour: ' + hhmm(peakH * 60) + '–' + hhmm(peakH * 60 + 60) + '</div>' : '') + '</div>';

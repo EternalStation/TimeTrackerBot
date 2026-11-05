@@ -15,7 +15,7 @@ async def test_tick_sends_ping_with_valid_keyboard(repo):
     await tick(bot, repo, CFG, dt(2026, 11, 4, 10, 0, 5))
     assert len(bot.sent) == 1
     msg = bot.sent[0]
-    assert msg["text"] == "🕐 What were you doing 10:00–11:00?"
+    assert msg["text"] == "🧾 New line item: what were you doing 10:00–11:00?"
     rows = msg["reply_markup"].inline_keyboard
     assert rows[0][0].text.startswith("↩️ Same: 💼 Work")
     assert rows[-1][0].callback_data.endswith(":mix") and rows[-1][1].callback_data.endswith(":skip")
@@ -51,7 +51,7 @@ async def test_no_ping_while_timer_and_nothing_outside_window(repo):
     await repo.update_user(1, next_ping_at="2026-11-04T23:30:00Z")
     await tick(bot, repo, CFG, dt(2026, 11, 4, 23, 30))
     u = await repo.get_user(1)
-    assert not any("What were you doing" in m["text"] for m in bot.sent)
+    assert not any("what were you doing" in m["text"] for m in bot.sent)
     assert u["last_checkin_at"] == "2026-11-05T08:00:00Z"
     assert u["next_ping_at"] == "2026-11-05T09:00:00Z"
 
@@ -67,7 +67,7 @@ async def test_final_ping_scheduled_at_window_end(repo):
     await tick(bot, repo, CFG, dt(2026, 11, 4, 22, 10))
     assert (await repo.get_user(1))["next_ping_at"] == "2026-11-04T23:00:00Z"   # exactly the window end
     await tick(bot, repo, CFG, dt(2026, 11, 4, 23, 0, 10))
-    assert bot.sent[-1]["text"] == "🕐 What were you doing 22:00–23:00?"
+    assert bot.sent[-1]["text"] == "🧾 New line item: what were you doing 22:00–23:00?"
 
 
 async def test_telegram_errors_do_not_kill_tick(repo):
@@ -85,9 +85,50 @@ async def test_daily_summary_sent_once_after_window_end(repo):
     await repo.add_entry(1, c["Work"]["id"], dt(2026, 11, 4, 9), dt(2026, 11, 4, 17), "checkin")
     bot = FakeBot()
     await tick(bot, repo, CFG, dt(2026, 11, 4, 23, 10))
-    assert bot.sent == []                                   # window ends 23:00, summary at 23:20
-    await tick(bot, repo, CFG, dt(2026, 11, 4, 23, 21))
-    await tick(bot, repo, CFG, dt(2026, 11, 4, 23, 22))
-    assert len(bot.sent) == 1
-    assert "Day 1/7" in bot.sent[0]["text"] and "💼 Work 8h" in bot.sent[0]["text"]
+    assert bot.sent == [] and bot.photos == []              # window ends 23:00, summary at 23:20
+    await tick(bot, repo, CFG, dt(2026, 11, 4, 23, 21), bot_username="spent_bot")
+    await tick(bot, repo, CFG, dt(2026, 11, 4, 23, 22), bot_username="spent_bot")
+    assert bot.sent == [] and len(bot.photos) == 1          # one receipt photo, no text
+    photo = bot.photos[0]
+    assert photo["caption"].startswith("Today's receipt.")
+    assert photo["reply_markup"] is None or photo["reply_markup"].inline_keyboard is not None
     assert (await repo.get_user(1))["last_summary_date"] == "2026-11-04"
+
+
+async def test_daily_summary_falls_back_to_text_when_rendering_raises(repo, monkeypatch):
+    import app.reports as reports
+
+    def boom(*a, **k):
+        raise RuntimeError("no fonts")
+    monkeypatch.setattr(reports, "render_day_receipt", boom)
+    user, c = await make_user(repo, start="2026-11-04", next_ping_at="2026-11-05T09:00:00Z")
+    await repo.add_entry(1, c["Work"]["id"], dt(2026, 11, 4, 9), dt(2026, 11, 4, 17), "checkin")
+    bot = FakeBot()
+    await tick(bot, repo, CFG, dt(2026, 11, 4, 23, 22))
+    assert bot.photos == [] and len(bot.sent) == 1
+    assert "Day 1/7" in bot.sent[0]["text"] and "💼 Work 8h" in bot.sent[0]["text"]
+
+
+async def test_daily_summary_falls_back_to_text_when_send_photo_fails(repo):
+    user, c = await make_user(repo, start="2026-11-04", next_ping_at="2026-11-05T09:00:00Z")
+    await repo.add_entry(1, c["Work"]["id"], dt(2026, 11, 4, 9), dt(2026, 11, 4, 17), "checkin")
+
+    class PhotoFails(FakeBot):
+        async def send_photo(self, chat_id, photo, **kw):
+            raise RuntimeError("wrong file type")
+    bot = PhotoFails()
+    await tick(bot, repo, CFG, dt(2026, 11, 4, 23, 22))
+    assert len(bot.sent) == 1 and "💼 Work 8h" in bot.sent[0]["text"]
+    assert (await repo.get_user(1))["last_summary_date"] == "2026-11-04"      # loop moved on
+
+
+async def test_weekly_report_sends_week_receipt_photo(repo):
+    from app.reports import send_weekly_report
+    user, c = await make_user(repo, start="2026-10-29")
+    await repo.add_entry(1, c["Work"]["id"], dt(2026, 11, 4, 9), dt(2026, 11, 4, 17), "checkin")
+    await repo.add_entry(1, c["Social media"]["id"], dt(2026, 11, 4, 17), dt(2026, 11, 4, 19), "checkin")
+    bot = FakeBot()
+    from datetime import date
+    await send_weekly_report(bot, repo, CFG, user, date(2026, 11, 4), dt(2026, 11, 5, 0, 30), "spent_bot")
+    assert len(bot.photos) == 1 and bot.photos[0]["caption"].startswith("Weekly receipt.")
+    assert len(bot.sent) == 1 and "Set goal" in str(bot.sent[0]["reply_markup"])

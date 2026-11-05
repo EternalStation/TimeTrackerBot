@@ -97,4 +97,4 @@ async def cmd_log(message: Message, repo: Repo, bot, cfg: Config, command: Comma
 async def free_text(message: Message, repo: Repo, bot):
     if await handle_log_text(message, message.text, repo, bot):
         return
-    await message.answer("I didn't get that. To log time, send something like 14:00-15:30 work. /help lists everything.")
+    await message.answer("Didn't catch that. To add an item, send something like 14:00-15:30 work. /help has the menu.")

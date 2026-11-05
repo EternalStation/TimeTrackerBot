@@ -5,6 +5,7 @@ import asyncio
 import logging
 from datetime import date, datetime, timedelta
 
+from .bot import texts
 from .bot.keyboards import ping_keyboard
 from .entries import day_stats_for, user_tz
 from .intervals import awake_window, decide_ping
@@ -40,7 +41,7 @@ async def process_ping(bot, repo, user: dict, now: datetime) -> str:
         await repo.set_ping_status(old["id"], "expired")
         s, e = parse_iso(old["start_utc"]), parse_iso(old["end_utc"])
         await safe_edit(bot, user["chat_id"], old["message_id"],
-                        f"⏭ Skipped {fmt_hm(s, tz)}–{fmt_hm(e, tz)} (fill it in with /log if you want)")
+                        texts.ping_expired(f"{fmt_hm(s, tz)}–{fmt_hm(e, tz)}"))
 
     cats = await repo.list_categories(uid, active_only=True)
     previous = None
@@ -48,7 +49,7 @@ async def process_ping(bot, repo, user: dict, now: datetime) -> str:
     if last_entry:
         previous = next((c for c in cats if c["id"] == last_entry["category_id"]), None)
     ping_id = await repo.add_ping(uid, None, dec.start, dec.end, now)
-    text = f"🕐 What were you doing {fmt_hm(dec.start, tz)}–{fmt_hm(dec.end, tz)}?"
+    text = texts.ping_question(f"{fmt_hm(dec.start, tz)}–{fmt_hm(dec.end, tz)}")
     msg = await safe_send(bot, user["chat_id"], text, reply_markup=ping_keyboard(ping_id, cats, previous))
     if msg is not None:
         await repo.set_ping_message(ping_id, msg.message_id)
@@ -77,7 +78,7 @@ async def process_summaries(bot, repo, cfg, user: dict, now: datetime, bot_usern
             ds = await day_stats_for(repo, user, d, now)
             if ds.tracked_minutes == 0:
                 return          # joined late on day 1 and logged nothing: no empty summary
-        await send_daily_summary(bot, repo, cfg, user, d, now)
+        await send_daily_summary(bot, repo, cfg, user, d, now, bot_username)
         n = challenge_day(user, d)
         last_weekly = user["last_weekly_report_date"]
         if n and n >= cfg.challenge_days and n % cfg.challenge_days == 0 \

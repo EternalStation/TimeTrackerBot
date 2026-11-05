@@ -45,8 +45,9 @@ def change_keyboard(ping_id: int) -> InlineKeyboardMarkup:
 
 
 def main_reply_keyboard(webapp_url: str) -> ReplyKeyboardMarkup:
-    dash = (KeyboardButton(text="📊 Dashboard", web_app=WebAppInfo(url=webapp_url)) if webapp_url
-            else KeyboardButton(text="📊 Dashboard"))
+    # Plain text button on purpose: Mini Apps opened from a reply-keyboard button get an empty
+    # initData, so the API can't tell who the user is. The handler answers with an inline button.
+    dash = KeyboardButton(text="📊 Dashboard")
     return ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text="▶️ Start"), KeyboardButton(text="⏹ Stop")],
                   [KeyboardButton(text="➕ Log"), dash]],

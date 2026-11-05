@@ -11,7 +11,7 @@ onboarding_state: dict[int, dict] = {}
 # manual entries waiting for a category choice, token -> {"user", "start", "end", "note"}
 pending_logs: dict[str, dict] = {}
 
-NOT_STARTED = "Send /start first and I'll set you up."
+NOT_STARTED = "Nothing on your tab yet. Send /start first."
 
 
 def new_pending(data: dict) -> str:

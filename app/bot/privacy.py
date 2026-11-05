@@ -39,7 +39,7 @@ async def confirm_delete(cb: CallbackQuery, repo: Repo):
         await repo.delete_user(cb.from_user.id)
         awaiting.pop(cb.from_user.id, None)
         onboarding_state.pop(cb.from_user.id, None)
-        await cb.message.answer("Done, all your data is deleted. Send /start if you ever want to try again.",
+        await cb.message.answer("Done. Everything is erased, no receipts kept. Send /start if you ever want a new tab.",
                                 reply_markup=ReplyKeyboardRemove())
     else:
         await cb.message.answer("Okay, nothing was deleted.")

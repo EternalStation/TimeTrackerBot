@@ -1,6 +1,7 @@
 """Daily summary, weekly report and the texts shared with /today and /week."""
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import date, datetime
@@ -8,7 +9,7 @@ from datetime import date, datetime
 from aiogram.types import BufferedInputFile, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
 from .ai import build_ai_input, get_insight
-from .card import render_week_card
+from .card import render_day_receipt, render_week_receipt
 from .entries import day_stats_for, user_tz, week_stats_for
 from .intervals import DayStats
 from .tg import safe_send, safe_send_photo
@@ -79,22 +80,65 @@ def week_text(week: dict, cats: dict[int, dict], insight_lines: list[str] | None
     return "\n".join(lines)
 
 
-def card_stats(week: dict, cats: dict[int, dict]) -> dict:
-    n = max(1, week["active_days"])
-    top = []
-    for t in week["totals"][:5]:
+def day_receipt_data(user: dict, ds: DayStats, cats: dict[int, dict], goals: list[dict], cfg) -> dict:
+    """The same numbers as /api/day (DayStats), reshaped for the receipt renderer."""
+    items = []
+    for t in ds.totals:
         c = cats.get(t["category_id"])
         if c:
-            top.append({"name": c["name"], "minutes": t["minutes"], "is_waste": bool(c["is_waste"]),
-                        "color": c["color"]})
-    return {"days": len(week["days"]), "waste_minutes": week["waste_minutes"],
-            "waste_per_day": int(round(week["waste_minutes"] / n)), "top": top}
+            items.append({"name": c["name"], "minutes": t["minutes"], "is_waste": bool(c["is_waste"])})
+    limits = []
+    for g in goals:
+        c = cats.get(g["category_id"])
+        if c:
+            limits.append({"name": c["name"], "limit": g["daily_limit_min"],
+                           "used": ds.minutes_for(g["category_id"])})
+    return {"date": ds.date, "day_n": challenge_day(user, ds.date), "day_total": cfg.challenge_days,
+            "items": items, "tracked": ds.tracked_minutes, "untracked": ds.untracked_minutes,
+            "waste": ds.waste_minutes, "waste_share": ds.waste_share, "limits": limits,
+            "user_id": user["id"]}
 
 
-async def send_daily_summary(bot, repo, cfg, user: dict, d: date, now: datetime) -> None:
+def week_receipt_data(user: dict, week: dict, cats: dict[int, dict]) -> dict:
+    n = max(1, week["active_days"])
+    top = []
+    for t in week["totals"]:
+        c = cats.get(t["category_id"])
+        if c:
+            top.append({"name": c["name"], "minutes": t["minutes"], "is_waste": bool(c["is_waste"])})
+    return {"start": date.fromisoformat(week["start"]), "end": date.fromisoformat(week["end"]),
+            "days": [{"date": date.fromisoformat(d["date"]), "waste_minutes": d["waste_minutes"],
+                      "tracked_minutes": d["tracked_minutes"]} for d in week["days"]],
+            "top": top, "waste_minutes": week["waste_minutes"],
+            "waste_per_day": int(round(week["waste_minutes"] / n)), "user_id": user["id"]}
+
+
+def day_caption(data: dict, today: date | None) -> str:
+    head = "Today's receipt." if today is None or data["date"] == today else f"Receipt for {data['date'].strftime('%a %d %b')}."
+    if not data["items"]:
+        return f"{head} Nothing rung up."
+    if data["waste"] == 0:
+        return f"{head} Wasted nothing. Suspicious."
+    return f"{head} Wasted {fmt_dur(data['waste'])} ({round(data['waste_share'] * 100)}%)."
+
+
+async def send_daily_summary(bot, repo, cfg, user: dict, d: date, now: datetime,
+                             bot_username: str = "") -> None:
+    """Receipt PNG + short caption + dashboard button. Any failure falls back to the text summary."""
     cats = {c["id"]: c for c in await repo.list_categories(user["id"])}
     goals = await repo.list_goals(user["id"])
     ds = await day_stats_for(repo, user, d, now, list(cats.values()))
+    try:
+        data = day_receipt_data(user, ds, cats, goals, cfg)
+        png = await asyncio.to_thread(render_day_receipt, data, bot_username)
+        msg = await safe_send_photo(bot, user["chat_id"], BufferedInputFile(png, "receipt.png"),
+                                    caption=day_caption(data, local_date(now, user_tz(user))),
+                                    reply_markup=dashboard_markup(cfg))
+        if msg is not None:
+            return
+        log.warning("daily receipt was not delivered to %s, sending text", user["id"])
+    except Exception:
+        log.exception("daily receipt failed for user %s, sending text", user["id"])
     await safe_send(bot, user["chat_id"], day_text(user, ds, cats, goals, cfg),
                     reply_markup=dashboard_markup(cfg))
 
@@ -121,11 +165,12 @@ async def send_weekly_report(bot, repo, cfg, user: dict, end: date, now: datetim
                                json.dumps(insight["goal"]) if insight["goal"] else None, now)
 
     try:
-        png = render_week_card(card_stats(week, cats), bot_username)
+        png = await asyncio.to_thread(render_week_receipt, week_receipt_data(user, week, cats),
+                                      insight["insights"], bot_username)
         await safe_send_photo(bot, user["chat_id"], BufferedInputFile(png, "week.png"),
-                              caption=f"Your {len(week['days'])}-day time audit")
+                              caption=f"Weekly receipt. {len(week['days'])} days, itemized.")
     except Exception:
-        log.exception("card rendering failed")
+        log.exception("weekly receipt rendering failed")
 
     rows = []
     goal = insight.get("goal")

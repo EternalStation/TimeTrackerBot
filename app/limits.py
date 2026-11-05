@@ -37,7 +37,7 @@ async def check_limits(bot, repo: Repo, user_id: int, now: datetime | None = Non
             continue
         if not await repo.add_limit_warning(user_id, g["category_id"], today.isoformat()):
             continue
-        text = f"⚠️ {cat['name']}: {fmt_dur(used)} today. Your limit is {fmt_dur(g['daily_limit_min'])}."
+        text = f"⚠️ {cat['name']}: {fmt_dur(used)} today. Your limit is {fmt_dur(g['daily_limit_min'])}. Just flagging it."
         await safe_send(bot, user["chat_id"], text)
         sent.append(text)
     return sent

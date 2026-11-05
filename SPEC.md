@@ -21,7 +21,7 @@ Telegram bot + Telegram Mini App dashboard. Users run a "7-day time audit": the 
 | `BOT_TOKEN` | yes (except `WEB_ONLY=1`) | — | from BotFather |
 | `PUBLIC_URL` | yes for Mini App | — | e.g. `https://timetracker.up.railway.app` (no trailing slash) |
 | `ANTHROPIC_API_KEY` | no | — | enables AI insights |
-| `ANTHROPIC_MODEL` | no | `claude-haiku-4-5` | model id |
+| `ANTHROPIC_MODEL` | no | `claude-haiku-5-5` | model id |
 | `DB_PATH` | no | `./data/timetracker.db` | Railway: `/data/timetracker.db` |
 | `ADMIN_IDS` | no | — | comma-separated Telegram user ids allowed to use `/admin_stats` |
 | `PORT` | no | `8080` | Railway sets it |

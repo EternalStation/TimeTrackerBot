@@ -83,7 +83,7 @@ async def _create(cb: CallbackQuery, repo: Repo, bot, cat_id: int, minutes: int)
     await repo.replace_goal(user["id"], cat_id, minutes, baseline, now)
     await safe_answer(cb, "Goal set")
     extra = f" Your recent average is {fmt_dur(baseline)}." if baseline else ""
-    await cb.message.answer(f"🎯 Goal set: {cat['name']} up to {fmt_dur(minutes)} a day.{extra}")
+    await cb.message.answer(f"🎯 Goal set: {cat['name']} up to {fmt_dur(minutes)} a day.{extra} I'll flag it if you cross the line.")
     await check_limits(bot, repo, user["id"], now)
 
 
