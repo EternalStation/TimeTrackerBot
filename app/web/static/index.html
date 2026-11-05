@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Time audit</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+<div class="app" id="app">
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab" role="tab" id="tab-today" data-tab="today" aria-selected="true" aria-controls="view-today">Today</button>
+    <button class="tab" role="tab" id="tab-week" data-tab="week" aria-selected="false" aria-controls="view-week">Week</button>
+    <button class="tab" role="tab" id="tab-goals" data-tab="goals" aria-selected="false" aria-controls="view-goals">Goals</button>
+  </nav>
+  <main>
+    <section id="view-today" role="tabpanel" aria-labelledby="tab-today"></section>
+    <section id="view-week" role="tabpanel" aria-labelledby="tab-week" hidden></section>
+    <section id="view-goals" role="tabpanel" aria-labelledby="tab-goals" hidden></section>
+  </main>
+</div>
+<div id="sheet-root" aria-hidden="true"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<noscript><p style="padding:16px">This dashboard needs JavaScript.</p></noscript>
+<script src="vendor/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
